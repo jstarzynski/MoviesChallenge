@@ -2,13 +2,13 @@ package com.android.challenge.movies.ui
 
 import android.arch.lifecycle.Observer
 import android.arch.lifecycle.ViewModelProviders
+import android.content.Intent
 import android.content.res.Resources
 import android.graphics.Point
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.GridLayoutManager
 import android.view.View
-import android.widget.Toast
 import com.android.challenge.movies.R
 import com.android.challenge.movies.repository.MoviesGridAdapter
 import com.android.challenge.movies.viewmodel.MainViewModel
@@ -31,7 +31,13 @@ class MainActivity : AppCompatActivity() {
             viewModel.getNextPage()
         }
 
-        viewAdapter.onItemSelected { Toast.makeText(this, "Clicked at postition: $it", Toast.LENGTH_SHORT).show() }
+        viewAdapter.onItemSelected {movie ->
+            startActivity(Intent(this, DetailActivity::class.java).also {
+                it.putExtra(DetailActivity.EXTRA_BACKDROP, movie.backdropPath)
+                it.putExtra(DetailActivity.EXTRA_OVERVIEW, movie.overview)
+                it.putExtra(DetailActivity.EXTRA_TITLE, movie.title)
+            })
+        }
 
         moviesGrid.apply {
             layoutManager = GridLayoutManager(context, columnSpan)

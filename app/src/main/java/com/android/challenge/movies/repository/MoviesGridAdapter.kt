@@ -42,9 +42,9 @@ class MoviesGridAdapter(private val activity: Activity,
     }
 
     private var moviesList : List<Movie> = listOf()
-    private var onClickListener: ((Int) -> Unit)? = null
+    private var onClickListener: ((Movie) -> Unit)? = null
 
-    fun onItemSelected(listener: (Int) -> Unit) {
+    fun onItemSelected(listener: (Movie) -> Unit) {
         onClickListener = listener
     }
 
@@ -68,7 +68,7 @@ class MoviesGridAdapter(private val activity: Activity,
             onReachingEndListener()
 
         if (moviesList[position].title.isNotEmpty())
-            holder.itemView.setOnClickListener { onClickListener?.let { it(position) } }
+            holder.itemView.setOnClickListener { onClickListener?.let { it(moviesList[position]) } }
         else
             holder.itemView.setOnClickListener(null)
 

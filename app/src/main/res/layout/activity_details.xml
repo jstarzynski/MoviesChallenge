@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <ImageView
+                android:id="@+id/backdrop"
+                android:layout_width="match_parent"
+                android:layout_height="240dp"/>
+
+            <TextView
+                android:id="@+id/movieTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start|bottom"
+                android:padding="16dp"
+
+                android:background="#77000000"
+                android:textSize="20sp"
+                android:textColor="@android:color/white"
+                android:fontFamily="sans-serif-smallcaps"
+
+                tools:text="Johnny English Strikes Again"/>
+
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/overview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+
+            tools:text="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ut massa massa. Proin accumsan tellus non tellus interdum, vel gravida ligula fringilla. Sed ac lacus dui. In ullamcorper risus id tempor venenatis. Ut laoreet feugiat nulla posuere tincidunt. Proin pulvinar sagittis hendrerit. Quisque fringilla efficitur tellus ut imperdiet. Curabitur in ex in nisi pellentesque tristique. Nulla risus turpis, blandit vitae lectus eu, rhoncus iaculis libero. Sed ante sem, fermentum at libero a, rutrum sollicitudin massa. Donec vitae tortor neque. Sed vestibulum luctus orci fermentum iaculis. Aenean feugiat dapibus felis, id sagittis leo semper et.\n\nEtiam gravida porta blandit. Phasellus gravida felis eu ultrices lacinia. Nam maximus pretium libero, sit amet rhoncus dui gravida vel. Nunc finibus urna eget euismod suscipit. Vivamus dictum mi vitae est lacinia scelerisque. Cras aliquet at odio vehicula pulvinar. Praesent pharetra mollis sagittis. Aliquam laoreet ultricies mi semper molestie. Sed et gravida mauris. Fusce vitae nibh molestie, aliquam nunc at, elementum velit. Integer ac eros odio. Ut id ligula quis est auctor vehicula ut ut mauris. Vivamus vestibulum ultricies efficitur. Praesent risus tellus, mollis vel odio sit amet, viverra pellentesque lacus."/>
+
+    </LinearLayout>
+
+
+</ScrollView>
