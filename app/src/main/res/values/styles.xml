@@ -6,6 +6,11 @@
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:dropDownListViewStyle">@style/AppWidget.DropdownListViewStyle</item>
+    </style>
+
+    <style name="AppWidget.DropdownListViewStyle" parent="Widget.AppCompat.ListView.DropDown">
+        <item name="android:background">@android:color/white</item>
     </style>
 
 </resources>

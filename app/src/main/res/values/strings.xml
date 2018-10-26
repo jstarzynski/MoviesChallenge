@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Movies</string>
+    <string name="label_query">Query</string>
+    <string name="hint_query">movie title…</string>
 </resources>
