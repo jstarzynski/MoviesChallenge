@@ -2,4 +2,6 @@
     <string name="app_name">Movies</string>
     <string name="label_query">Query</string>
     <string name="hint_query">movie title…</string>
+    <string name="now_playing_subtitle">Now Playing</string>
+    <string name="search_query_subtitle_stub">Searching for: %1$s</string>
 </resources>

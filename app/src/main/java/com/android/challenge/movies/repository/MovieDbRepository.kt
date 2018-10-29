@@ -16,6 +16,9 @@ class MovieDbRepository {
 
 
     fun getNowPlayingMovies(context: Context, page: Int) =
-        movieDbService.getNowPlayingMovies(context.getString(R.string.MOVIE_DB_API_KEY), page)
+            movieDbService.getNowPlayingMovies(context.getString(R.string.MOVIE_DB_API_KEY), page)
+
+    fun searhMovies(context: Context, query: String, page: Int) =
+            movieDbService.searchMovies(context.getString(R.string.MOVIE_DB_API_KEY), query, page)
 
 }

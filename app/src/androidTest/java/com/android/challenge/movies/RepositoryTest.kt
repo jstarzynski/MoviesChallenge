@@ -29,6 +29,14 @@ class RepositoryTest {
         assertEquals(20 * 100, results.size)
     }
 
+    @Test
+    fun useSearchMovies() {
+        val appContext = InstrumentationRegistry.getTargetContext()
+        val repo = MovieDbRepository()
+        val response = repo.searhMovies(appContext, "crazy", 1).execute().body()
+        assertNotNull(response)
+    }
+
     private fun getNowPlayingPaginationStep(context: Context, repo: MovieDbRepository, stepIndex: Int, accumulateResults: MutableList<Movie>) {
         val response = repo.getNowPlayingMovies(context, stepIndex).execute().body()
         assertNotNull(response)

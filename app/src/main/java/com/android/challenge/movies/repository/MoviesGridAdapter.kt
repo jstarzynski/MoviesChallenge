@@ -19,7 +19,7 @@ import com.bumptech.glide.request.RequestOptions
 class MoviesGridAdapter(private val activity: Activity,
                         private val preferredHeight: Int,
                         private val reachingEndOffset: Int,
-                        private val onReachingEndListener: () -> Unit)
+                        private val onReachingEndListener: (Int) -> Unit)
     : RecyclerView.Adapter<MoviesGridAdapter.MovieItemViewHolder>() {
 
     private val placeholderColors: IntArray = IntArray(13)
@@ -65,7 +65,7 @@ class MoviesGridAdapter(private val activity: Activity,
     override fun onBindViewHolder(holder: MoviesGridAdapter.MovieItemViewHolder, position: Int) {
 
         if (itemCount - position < reachingEndOffset)
-            onReachingEndListener()
+            onReachingEndListener(itemCount)
 
         if (moviesList[position].title.isNotEmpty())
             holder.itemView.setOnClickListener { onClickListener?.let { it(moviesList[position]) } }
@@ -89,7 +89,9 @@ class MoviesGridAdapter(private val activity: Activity,
 
             holder.title.text = moviesList[position].title
         }
+    }
 
-
+    override fun onViewRecycled(holder: MovieItemViewHolder) {
+        Glide.with(activity).clear(holder.image)
     }
 }

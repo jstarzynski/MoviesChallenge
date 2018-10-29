@@ -7,13 +7,13 @@ import android.content.res.Resources
 import android.database.MatrixCursor
 import android.graphics.Point
 import android.os.Bundle
-import android.provider.BaseColumns
 import android.support.v4.widget.CursorAdapter
 import android.support.v4.widget.SimpleCursorAdapter
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.GridLayoutManager
 import android.support.v7.widget.SearchView
 import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import com.android.challenge.movies.R
 import com.android.challenge.movies.repository.MoviesGridAdapter
@@ -28,8 +28,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var searchViewAdapter: SimpleCursorAdapter
 
-
     private lateinit var viewModel: MainViewModel
+
+    private lateinit var searchViewItem: MenuItem
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,7 +40,7 @@ class MainActivity : AppCompatActivity() {
 
         val columnSpan = calculateColumnSpan()
         val viewAdapter = MoviesGridAdapter(this, calculatePreferredHeight(columnSpan), 10) {
-            viewModel.getNextPage()
+            viewModel.getNextPage(it)
         }
 
         viewAdapter.onItemSelected {movie ->
@@ -63,9 +64,12 @@ class MainActivity : AppCompatActivity() {
                 progress.visibility = View.GONE
             }
         })
+        viewModel.suggestionsStream.observe(this, Observer {
+            searchViewAdapter.changeCursor(it)
+        })
 
         if (savedInstanceState == null)
-            viewModel.startNowPlayingMoviesSearch()
+            startNowPlayingMoviesSearch()
     }
 
     private fun initSearchAdapter() {
@@ -80,18 +84,51 @@ class MainActivity : AppCompatActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.activity_main_menu, menu)
 
-        val searchMenuItem = menu.findItem(R.id.search)
+        searchViewItem = menu.findItem(R.id.search)
+        val actionView = searchViewItem.actionView as SearchView
+        actionView.queryHint = getString(R.string.hint_query)
+        actionView.suggestionsAdapter = searchViewAdapter
 
-        val actionView = (searchMenuItem.actionView as SearchView)
-            actionView.queryHint = getString(R.string.hint_query)
-            actionView.suggestionsAdapter = searchViewAdapter
+        actionView.setOnQueryTextListener(object: SearchView.OnQueryTextListener {
 
-        val matrixCursor = MatrixCursor(arrayOf(BaseColumns._ID, "title"))
-        for (i in 0..10)
-            matrixCursor.addRow(arrayOf(i, "title$i"))
-        searchViewAdapter.changeCursor(matrixCursor)
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                query?.let { startMoviesSearch(it) }
+                return true
+            }
+
+            override fun onQueryTextChange(query: String?): Boolean {
+                query?.let { viewModel.newSuggestionsQuery(it) }
+                return true
+            }
+        })
+
+        actionView.setOnSuggestionListener(object: SearchView.OnSuggestionListener {
+
+            override fun onSuggestionSelect(position: Int): Boolean { return false }
+
+            override fun onSuggestionClick(position: Int): Boolean {
+                (searchViewAdapter.getItem(position) as? MatrixCursor)?.let { matrix ->
+                    matrix.getString(matrix.getColumnIndex("title"))?.let {
+                        startMoviesSearch(it)
+                        return true
+                    }
+                }
+                return false
+            }
+        })
 
         return true
+    }
+
+    private fun startMoviesSearch(query: String) {
+        viewModel.startMoviesSearch(query)
+        searchViewItem.collapseActionView()
+        supportActionBar?.subtitle = getString(R.string.search_query_subtitle_stub, query)
+    }
+
+    private fun startNowPlayingMoviesSearch() {
+        viewModel.startNowPlayingMoviesSearch()
+        supportActionBar?.subtitle = getString(R.string.now_playing_subtitle)
     }
 
     private fun calculateColumnSpan() = Point().run {
