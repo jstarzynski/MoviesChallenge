@@ -18,6 +18,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val moviesStream : MutableLiveData<List<Movie>> = MutableLiveData()
     val suggestionsStream: MutableLiveData<AbstractCursor> = MutableLiveData()
+    val errorStream: MutableLiveData<Throwable> = MutableLiveData()
 
     private val fakePlaceholders = List(20) { Movie(null, null, String(), String()) }
 
@@ -69,7 +70,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         moviesDbRepository.getNowPlayingMovies(getApplication(), moviesCurrentPage).enqueue(object: Callback<SearchResults?> {
             override fun onFailure(call: Call<SearchResults?>?, t: Throwable?) {
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                errorStream.postValue(t)
             }
 
             override fun onResponse(call: Call<SearchResults?>?, response: Response<SearchResults?>?) {
@@ -87,7 +88,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         moviesDbRepository.searhMovies(getApplication(), query, moviesCurrentPage).enqueue(object: Callback<SearchResults?> {
             override fun onFailure(call: Call<SearchResults?>?, t: Throwable?) {
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                errorStream.postValue(t)
             }
 
             override fun onResponse(call: Call<SearchResults?>?, response: Response<SearchResults?>?) {
@@ -106,7 +107,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         moviesDbRepository.searhMovies(getApplication(), query, 1).enqueue(object: Callback<SearchResults?> {
             override fun onFailure(call: Call<SearchResults?>?, t: Throwable?) {
                 processNextSuggestion()
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                errorStream.postValue(t)
             }
 
             override fun onResponse(call: Call<SearchResults?>?, response: Response<SearchResults?>?) {

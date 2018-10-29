@@ -4,4 +4,6 @@
     <string name="hint_query">movie title…</string>
     <string name="now_playing_subtitle">Now Playing</string>
     <string name="search_query_subtitle_stub">Searching for: %1$s</string>
+    <string name="snackbar_connection_error_msg">Connection error. Please make sure you\'ve got data connection available.</string>
+    <string name="snackbar_dismiss_action">dismiss</string>
 </resources>

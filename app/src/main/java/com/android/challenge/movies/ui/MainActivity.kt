@@ -7,6 +7,7 @@ import android.content.res.Resources
 import android.database.MatrixCursor
 import android.graphics.Point
 import android.os.Bundle
+import android.support.design.widget.Snackbar
 import android.support.v4.widget.CursorAdapter
 import android.support.v4.widget.SimpleCursorAdapter
 import android.support.v7.app.AppCompatActivity
@@ -31,6 +32,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var viewModel: MainViewModel
 
     private lateinit var searchViewItem: MenuItem
+
+    private var connectionErrorSnackbar: Snackbar? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,6 +69,16 @@ class MainActivity : AppCompatActivity() {
         })
         viewModel.suggestionsStream.observe(this, Observer {
             searchViewAdapter.changeCursor(it)
+        })
+        viewModel.errorStream.observe(this, Observer {
+            if (connectionErrorSnackbar == null)
+                connectionErrorSnackbar = Snackbar.make(moviesGrid,
+                        getString(R.string.snackbar_connection_error_msg),
+                        Snackbar.LENGTH_INDEFINITE)
+                        .setAction(getString(R.string.snackbar_dismiss_action)) {
+                            connectionErrorSnackbar = null
+                        }
+                        .apply { show() }
         })
 
         if (savedInstanceState == null)
