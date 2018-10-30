@@ -33,7 +33,7 @@ class RepositoryTest {
     fun useSearchMovies() {
         val appContext = InstrumentationRegistry.getTargetContext()
         val repo = MovieDbRepository()
-        val response = repo.searhMovies(appContext, "crazy", 1).execute().body()
+        val response = repo.searchMovies(appContext, "crazy", 1).execute().body()
         assertNotNull(response)
     }
 

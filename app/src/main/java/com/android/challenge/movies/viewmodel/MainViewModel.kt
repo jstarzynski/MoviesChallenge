@@ -6,28 +6,31 @@ import android.arch.lifecycle.MutableLiveData
 import android.database.AbstractCursor
 import android.database.MatrixCursor
 import android.provider.BaseColumns
+import android.util.Log
 import com.android.challenge.movies.model.Movie
 import com.android.challenge.movies.network.SearchResults
 import com.android.challenge.movies.repository.MovieDbRepository
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.util.concurrent.locks.ReentrantLock
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    val moviesStream : MutableLiveData<List<Movie>> = MutableLiveData()
+    val moviesStream : MutableLiveData<List<List<Movie>>> = MutableLiveData()
     val suggestionsStream: MutableLiveData<AbstractCursor> = MutableLiveData()
     val errorStream: MutableLiveData<Throwable> = MutableLiveData()
 
-    private val fakePlaceholders = List(20) { Movie(null, null, String(), String()) }
+    private val fakePlaceholders = List(20) { Movie.PLACEHOLDER }
 
     private var moviesCurrentPage = 0
     private var moviesEndOfData: Boolean = false
-    private val moviesData : MutableList<Movie> = mutableListOf()
+    private val moviesData : MutableList<List<Movie>> = mutableListOf()
     private val moviesDbRepository = MovieDbRepository()
 
-    private val suggestionsQueryLock = ReentrantLock()
+    private val suggestionsQueryExecutor = Executors.newSingleThreadExecutor()
+    private val suggestionsQueryRunning = AtomicBoolean(false)
     private var nextSuggestionQuery: String? = null
 
     private var state: MainViewModelState = IdleState
@@ -44,12 +47,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         state = SearchingMoviesState(query)
         moviesCurrentPage = 1
         moviesData.clear()
-        moviesEndOfData = false;
+        moviesEndOfData = false
         getSearchedMovies(query)
     }
 
-    fun getNextPage(numberOfResultsLoaded: Int) {
-        if (!moviesEndOfData && numberOfResultsLoaded <= moviesData.size) {
+    fun getNextPage() {
+        if (!moviesEndOfData) {
             moviesCurrentPage++
             when {
                 state === NowPlayingMoviesState -> getNowPlayingMovies()
@@ -59,75 +62,74 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun newSuggestionsQuery(query: String) {
-        if (!suggestionsQueryLock.isLocked)
-            queryMoviesSuggestions(query)
-        else
-            nextSuggestionQuery = query
+        suggestionsQueryExecutor.execute {
+            if (suggestionsQueryRunning.get())
+                nextSuggestionQuery = query
+            else
+                queryMoviesSuggestions(query)
+        }
     }
 
     private fun getNowPlayingMovies() {
-        moviesStream.postValue(moviesData + fakePlaceholders)
-
-        moviesDbRepository.getNowPlayingMovies(getApplication(), moviesCurrentPage).enqueue(object: Callback<SearchResults?> {
-            override fun onFailure(call: Call<SearchResults?>?, t: Throwable?) {
-                errorStream.postValue(t)
-            }
-
-            override fun onResponse(call: Call<SearchResults?>?, response: Response<SearchResults?>?) {
-                response?.body()?.let { if (it.page == it.totalPages) moviesEndOfData = true }
-                response?.body()?.results?.let {
-                    moviesData.addAll(it)
-                    moviesStream.postValue(moviesData)
-                }
-            }
-        })
+        moviesData.add(moviesCurrentPage - 1, fakePlaceholders)
+        moviesStream.postValue(moviesData)
+        moviesDbRepository.getNowPlayingMovies(getApplication(), moviesCurrentPage).enqueue(searchCallback)
     }
 
     private fun getSearchedMovies(query: String) {
-        moviesStream.postValue(moviesData + fakePlaceholders)
+        moviesData.add(moviesCurrentPage - 1, fakePlaceholders)
+        moviesStream.postValue(moviesData)
+        moviesDbRepository.searchMovies(getApplication(), query, moviesCurrentPage).enqueue(searchCallback)
+    }
 
-        moviesDbRepository.searhMovies(getApplication(), query, moviesCurrentPage).enqueue(object: Callback<SearchResults?> {
-            override fun onFailure(call: Call<SearchResults?>?, t: Throwable?) {
-                errorStream.postValue(t)
-            }
+    private val searchCallback = object: Callback<SearchResults?> {
+        override fun onFailure(call: Call<SearchResults?>?, t: Throwable?) {
+            errorStream.postValue(t)
+        }
 
-            override fun onResponse(call: Call<SearchResults?>?, response: Response<SearchResults?>?) {
-                response?.body()?.let { if (it.page == it.totalPages) moviesEndOfData = true }
-                response?.body()?.results?.let {
-                    moviesData.addAll(it)
-                    moviesStream.postValue(moviesData)
-                }
-            }
-        })
+        override fun onResponse(call: Call<SearchResults?>?, response: Response<SearchResults?>?) {
+            response?.body()?.let { if (it.page == it.totalPages) moviesEndOfData = true }
+            Log.v("searchMovies", "successResponse: ${response?.body()?.page}")
+            response?.body()?.let {
+                moviesData.add(it.page - 1, it.results)
+                moviesStream.postValue(moviesData)
+            } ?: Log.v("searchMovies", "errorResponse: ${response?.errorBody()}")
+        }
     }
 
     private fun queryMoviesSuggestions(query: String) {
-
-        suggestionsQueryLock.lock()
-        moviesDbRepository.searhMovies(getApplication(), query, 1).enqueue(object: Callback<SearchResults?> {
-            override fun onFailure(call: Call<SearchResults?>?, t: Throwable?) {
-                processNextSuggestion()
-                errorStream.postValue(t)
-            }
-
-            override fun onResponse(call: Call<SearchResults?>?, response: Response<SearchResults?>?) {
-                response?.body()?.results?.distinctBy { it.title }?.let {
-                    val matrixCursor = MatrixCursor(arrayOf(BaseColumns._ID, "title"))
-                    it.forEachIndexed { index, movie -> matrixCursor.addRow(arrayOf(index, movie.title)) }
-                    suggestionsStream.postValue(matrixCursor)
+        suggestionsQueryExecutor.execute {
+            suggestionsQueryRunning.set(true)
+            moviesDbRepository.searchMovies(getApplication(), query, 1).enqueue(object: Callback<SearchResults?> {
+                override fun onFailure(call: Call<SearchResults?>?, t: Throwable?) {
+                    errorStream.postValue(t)
+                    processNextSuggestion()
                 }
-                processNextSuggestion()
-            }
-        })
 
+                override fun onResponse(call: Call<SearchResults?>?, response: Response<SearchResults?>?) {
+                    response?.body()?.results?.distinctBy { it.title }?.let {
+                        val matrixCursor = MatrixCursor(arrayOf(BaseColumns._ID, SUGGESTIONS_TITLE_COLUMN_NAME))
+                        it.forEachIndexed { index, movie -> matrixCursor.addRow(arrayOf(index, movie.title)) }
+                        suggestionsStream.postValue(matrixCursor)
+                    }
+                    processNextSuggestion()
+                }
+            })
+        }
     }
 
     private fun processNextSuggestion() {
-        nextSuggestionQuery?.let {
-            nextSuggestionQuery = null
-            queryMoviesSuggestions(it)
+        suggestionsQueryExecutor.execute {
+            suggestionsQueryRunning.set(false)
+            nextSuggestionQuery?.let {
+                nextSuggestionQuery = null
+                queryMoviesSuggestions(it)
+            }
         }
-        suggestionsQueryLock.unlock()
+    }
+
+    companion object {
+        const val SUGGESTIONS_TITLE_COLUMN_NAME = "title"
     }
 
 }

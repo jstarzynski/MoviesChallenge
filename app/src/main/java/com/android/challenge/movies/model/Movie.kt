@@ -6,4 +6,10 @@ data class Movie(
         @SerializedName("poster_path") val posterPath: String?,
         @SerializedName("backdrop_path") val backdropPath: String?,
         val title: String,
-        val overview: String)
+        val overview: String) {
+
+    companion object {
+        val PLACEHOLDER = Movie(null, null, String(), String())
+    }
+
+}

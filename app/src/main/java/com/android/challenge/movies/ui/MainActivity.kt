@@ -17,7 +17,6 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import com.android.challenge.movies.R
-import com.android.challenge.movies.repository.MoviesGridAdapter
 import com.android.challenge.movies.viewmodel.MainViewModel
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlin.math.roundToInt
@@ -28,76 +27,50 @@ class MainActivity : AppCompatActivity() {
     private val imageOptimalRatio = 16f/9f
 
     private lateinit var searchViewAdapter: SimpleCursorAdapter
+    private lateinit var searchViewItem: MenuItem
+    private lateinit var viewAdapter: MoviesGridAdapter
+    private var connectionErrorSnackbar: Snackbar? = null
 
     private lateinit var viewModel: MainViewModel
-
-    private lateinit var searchViewItem: MenuItem
-
-    private var connectionErrorSnackbar: Snackbar? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         initSearchAdapter()
-
-        val columnSpan = calculateColumnSpan()
-        val viewAdapter = MoviesGridAdapter(this, calculatePreferredHeight(columnSpan), 10) {
-            viewModel.getNextPage(it)
-        }
-
-        viewAdapter.onItemSelected {movie ->
-            startActivity(Intent(this, DetailActivity::class.java).also {
-                it.putExtra(DetailActivity.EXTRA_BACKDROP, movie.backdropPath)
-                it.putExtra(DetailActivity.EXTRA_OVERVIEW, movie.overview)
-                it.putExtra(DetailActivity.EXTRA_TITLE, movie.title)
-            })
-        }
-
-        moviesGrid.apply {
-            layoutManager = GridLayoutManager(context, columnSpan)
-            adapter = viewAdapter
-        }
-
-        viewModel = ViewModelProviders.of(this).get(MainViewModel::class.java)
-        viewModel.moviesStream.observe(this, Observer {
-            viewAdapter.updateMoviesList(it ?: listOf())
-            if (it != null) {
-                moviesGrid.visibility = View.VISIBLE
-                progress.visibility = View.GONE
-            }
-        })
-        viewModel.suggestionsStream.observe(this, Observer {
-            searchViewAdapter.changeCursor(it)
-        })
-        viewModel.errorStream.observe(this, Observer {
-            if (connectionErrorSnackbar == null)
-                connectionErrorSnackbar = Snackbar.make(moviesGrid,
-                        getString(R.string.snackbar_connection_error_msg),
-                        Snackbar.LENGTH_INDEFINITE)
-                        .setAction(getString(R.string.snackbar_dismiss_action)) {
-                            connectionErrorSnackbar = null
-                        }
-                        .apply { show() }
-        })
+        initList()
+        initViewModel()
 
         if (savedInstanceState == null)
             startNowPlayingMoviesSearch()
     }
 
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.activity_main_menu, menu)
+        searchViewItem = menu.findItem(R.id.search)
+
+        initSearchViewAction()
+
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem?) =
+            if (item?.itemId == android.R.id.home) {
+                startNowPlayingMoviesSearch()
+                true
+            } else
+                super.onOptionsItemSelected(item)
+
     private fun initSearchAdapter() {
         searchViewAdapter = SimpleCursorAdapter(this,
                 android.R.layout.simple_list_item_1,
                 null,
-                arrayOf("title"),
+                arrayOf(MainViewModel.SUGGESTIONS_TITLE_COLUMN_NAME),
                 intArrayOf(android.R.id.text1),
                 CursorAdapter.FLAG_REGISTER_CONTENT_OBSERVER)
     }
 
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.activity_main_menu, menu)
-
-        searchViewItem = menu.findItem(R.id.search)
+    private fun initSearchViewAction() {
         val actionView = searchViewItem.actionView as SearchView
         actionView.queryHint = getString(R.string.hint_query)
         actionView.suggestionsAdapter = searchViewAdapter
@@ -121,7 +94,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onSuggestionClick(position: Int): Boolean {
                 (searchViewAdapter.getItem(position) as? MatrixCursor)?.let { matrix ->
-                    matrix.getString(matrix.getColumnIndex("title"))?.let {
+                    matrix.getString(matrix.getColumnIndex(MainViewModel.SUGGESTIONS_TITLE_COLUMN_NAME))?.let {
                         startMoviesSearch(it)
                         return true
                     }
@@ -129,19 +102,70 @@ class MainActivity : AppCompatActivity() {
                 return false
             }
         })
+    }
 
-        return true
+    private fun initList() {
+        viewAdapter = MoviesGridAdapter(this, calculatePreferredHeight(), 10) {
+            viewModel.getNextPage()
+        }
+
+        viewAdapter.onItemSelected {movie ->
+            startActivity(Intent(this, DetailActivity::class.java).also {
+                it.putExtra(DetailActivity.EXTRA_BACKDROP, movie.backdropPath)
+                it.putExtra(DetailActivity.EXTRA_OVERVIEW, movie.overview)
+                it.putExtra(DetailActivity.EXTRA_TITLE, movie.title)
+            })
+        }
+
+        moviesGrid.apply {
+            layoutManager = GridLayoutManager(context, calculateColumnSpan())
+            adapter = viewAdapter
+        }
+
+    }
+
+    private fun initViewModel() {
+        viewModel = ViewModelProviders.of(this).get(MainViewModel::class.java)
+
+        viewModel.moviesStream.observe(this, Observer {
+            viewAdapter.updateMoviesList(it ?: listOf())
+            if (it != null) {
+                moviesGrid.visibility = View.VISIBLE
+                progress.visibility = View.GONE
+            }
+        })
+
+        viewModel.suggestionsStream.observe(this, Observer {
+            searchViewAdapter.changeCursor(it)
+        })
+
+        viewModel.errorStream.observe(this, Observer {
+            showConnectionError()
+        })
     }
 
     private fun startMoviesSearch(query: String) {
         viewModel.startMoviesSearch(query)
         searchViewItem.collapseActionView()
         supportActionBar?.subtitle = getString(R.string.search_query_subtitle_stub, query)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
 
     private fun startNowPlayingMoviesSearch() {
         viewModel.startNowPlayingMoviesSearch()
         supportActionBar?.subtitle = getString(R.string.now_playing_subtitle)
+        supportActionBar?.setDisplayHomeAsUpEnabled(false)
+    }
+
+    private fun showConnectionError() {
+        if (connectionErrorSnackbar == null)
+            connectionErrorSnackbar = Snackbar.make(moviesGrid,
+                    getString(R.string.snackbar_connection_error_msg),
+                    Snackbar.LENGTH_INDEFINITE)
+                    .setAction(getString(R.string.snackbar_dismiss_action)) {
+                        connectionErrorSnackbar = null
+                    }
+                    .apply { show() }
     }
 
     private fun calculateColumnSpan() = Point().run {
@@ -149,9 +173,9 @@ class MainActivity : AppCompatActivity() {
         x / (imageOptimalWidthDp * Resources.getSystem().displayMetrics.density).roundToInt()
     }
 
-    private fun calculatePreferredHeight(columnSpan: Int) = Point().run {
+    private fun calculatePreferredHeight() = Point().run {
         windowManager.defaultDisplay.getSize(this)
-        (imageOptimalRatio * x / columnSpan).toInt()
+        (imageOptimalRatio * x / calculateColumnSpan()).toInt()
     }
 
 }
