@@ -128,7 +128,7 @@ class MainActivity : AppCompatActivity() {
         viewModel = ViewModelProviders.of(this).get(MainViewModel::class.java)
 
         viewModel.moviesStream.observe(this, Observer {
-            viewAdapter.updateMoviesList(it ?: listOf())
+            viewAdapter.updateMoviesList(it ?: listOf(), viewModel.isEndReached())
             if (it != null) {
                 moviesGrid.visibility = View.VISIBLE
                 progress.visibility = View.GONE

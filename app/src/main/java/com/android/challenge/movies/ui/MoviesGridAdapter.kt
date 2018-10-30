@@ -12,6 +12,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import com.android.challenge.movies.R
 import com.android.challenge.movies.model.Movie
+import com.android.challenge.movies.viewmodel.MainViewModel
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.bumptech.glide.request.RequestOptions
@@ -41,15 +42,17 @@ class MoviesGridAdapter(private val activity: Activity,
         val image: ImageView = movieItem.findViewById(R.id.image)
     }
 
-    private var moviesList : List<List<Movie>> = listOf()
+    private var moviesList : List<Movie> = listOf()
     private var onClickListener: ((Movie) -> Unit)? = null
+    private var endReached = false
 
     fun onItemSelected(listener: (Movie) -> Unit) {
         onClickListener = listener
     }
 
-    fun updateMoviesList(moviesList: List<List<Movie>>) {
-        this.moviesList = moviesList
+    fun updateMoviesList(moviesList: List<Movie>, endReached: Boolean) {
+        this.moviesList = moviesList.toList()
+        this.endReached = endReached
         notifyDataSetChanged()
     }
 
@@ -60,25 +63,30 @@ class MoviesGridAdapter(private val activity: Activity,
     }
 
 
-    override fun getItemCount(): Int = moviesList.a.size
+    override fun getItemCount(): Int = moviesList.size
 
     override fun onBindViewHolder(holder: MovieItemViewHolder, position: Int) {
 
-        if (itemCount - position == reachingEndOffset)
+        if (!endReached && itemCount - position <= reachingEndOffset) {
+            moviesList += List(MainViewModel.PLACEHOLDER_LIST_DEF_SIZE) { Movie.PLACEHOLDER }
+            holder.itemView.post { notifyDataSetChanged() }
             onReachingEndListener()
+        }
 
-        if (moviesList[position].title.isNotEmpty())
-            holder.itemView.setOnClickListener { onClickListener?.let { it(moviesList[position]) } }
+        val movie = moviesList[position]
+
+        if (movie.title.isNotEmpty())
+            holder.itemView.setOnClickListener { onClickListener?.let { it(movie) } }
         else
             holder.itemView.setOnClickListener(null)
 
-        if (moviesList[position].posterPath != null) {
+        if (movie.posterPath != null) {
             holder.image.visibility = View.VISIBLE
             holder.title.visibility = View.GONE
             holder.itemView.setBackgroundColor(0)
 
             Glide.with(activity)
-                    .load(moviesList[position].posterPath?.let { "http://image.tmdb.org/t/p/w500$it" } ?: ColorDrawable(placeholderColors[position % placeholderColors.size]))
+                    .load(movie.posterPath.let { "http://image.tmdb.org/t/p/w500$it" })
                     .apply(RequestOptions.centerCropTransform().placeholder(ColorDrawable(placeholderColors[position % placeholderColors.size])))
                     .transition(DrawableTransitionOptions.withCrossFade(300))
                     .into(holder.image)
@@ -87,7 +95,7 @@ class MoviesGridAdapter(private val activity: Activity,
             holder.title.visibility = View.VISIBLE
             holder.itemView.setBackgroundColor(placeholderColors[position % placeholderColors.size])
 
-            holder.title.text = moviesList[position].title
+            holder.title.text = movie.title
         }
     }
 
